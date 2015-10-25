@@ -151,15 +151,15 @@ def tesselate(size, verts, meshverts):
 
 					verts.append(getPoint(tc0, tc1, tc2, b))
 
-	for row in xrange(int(level)):
-		for col in xrange(int(level)):
-			meshverts.append(indexOff + (row + 1) * L1 + col)
-			meshverts.append(indexOff + row * L1 + col)
-			meshverts.append(indexOff + row * L1 + col + 1)
-			
-			meshverts.append(indexOff + (row + 1) * L1 + col)
-			meshverts.append(indexOff + row * L1 + col + 1)
-			meshverts.append(indexOff + (row + 1) * L1 + col + 1)
+			for row in xrange(int(level)):
+				for col in xrange(int(level)):
+					meshverts.append(indexOff + (row + 1) * L1 + col)
+					meshverts.append(indexOff + row * L1 + col)
+					meshverts.append(indexOff + row * L1 + col + 1)
+					
+					meshverts.append(indexOff + (row + 1) * L1 + col)
+					meshverts.append(indexOff + row * L1 + col + 1)
+					meshverts.append(indexOff + (row + 1) * L1 + col + 1)
 
 	return meshverts, verts
 
