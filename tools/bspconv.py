@@ -1,6 +1,5 @@
-import sys
 from Struct import *
-import struct
+import json, sys
 
 @Struct
 def Direntry():
@@ -148,12 +147,8 @@ def main(fn, ofn):
 			print 'other', face.type
 
 	outfp = file(ofn, 'wb')
-	outfp.write(struct.pack('II', len(outindices), len(outvertices)))
-	for index in outindices:
-		outfp.write(struct.pack('I', index))
-	for (pos, normal) in outvertices:
-		outfp.write(struct.pack('ffffff', *pos+normal))
-	outfp.close()
+	outdata = dict(indices=outindices, vertices=outvertices)
+	json.dump(outdata, outfp)
 
 if __name__=='__main__':
 	main(*sys.argv[1:])

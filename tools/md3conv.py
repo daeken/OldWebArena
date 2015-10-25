@@ -1,6 +1,5 @@
 import sys
 from Struct import *
-import struct
 
 @Struct
 def Frame():

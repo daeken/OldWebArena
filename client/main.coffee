@@ -39,5 +39,5 @@ $(document).ready ->
 			pos = newpos
 			network.update newpos
 	
-	assets.get 'gate1.wam', (data) ->
-		renderer.setMap importer.parse_wam data
+	assets.get_json 'gate1.json', (data) ->
+		renderer.setMap importer.parse_map data
