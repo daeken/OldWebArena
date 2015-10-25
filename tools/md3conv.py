@@ -66,6 +66,7 @@ def Header(self):
 		tags = Tag()[self.num_tags]
 	with struct_seek(self.ofs_surfaces, STRUCT_RELATIVE):
 		surfaces = Surface()[self.num_surfaces]
+	struct_seek(self.ofs_eof, STRUCT_RELATIVE)
 
 def main(fn, ofn):
 	fp = file(fn, 'rb')
