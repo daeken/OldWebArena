@@ -24,6 +24,21 @@ class Renderer
 		@$.click =>
 			if !@pointerLock
 				@de.requestPointerLock()
+		@leftmouse = @rightmouse = false
+		@$.mousedown (evt) =>
+			if !@pointerLock
+				return
+			if evt.button == 0
+				@leftmouse = true
+			else
+				@rightmouse = true
+		@$.mouseup (evt) =>
+			if !@pointerLock
+				return
+			if evt.button == 0
+				@leftmouse = false
+			else
+				@rightmouse = false
 		document.addEventListener 'pointerlockchange', (evt) =>
 			@pointerLock = !@pointerLock
 			@controls.enabled = @pointerLock
@@ -70,7 +85,10 @@ class Renderer
 			@controls.getObject().translateX(-1)
 		if @keyboard.pressed('d')
 			@controls.getObject().translateX(1)
-
+		if @leftmouse
+			@controls.getObject().translateY(1)
+		if @rightmouse
+			@controls.getObject().translateY(-1)
 
 		@renderer.setClearColor new THREE.Color(0x000010)
 		@renderer.render @scene, @camera
