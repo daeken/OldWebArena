@@ -2,8 +2,6 @@ import sys
 from Struct import *
 import struct
 
-Struct = StructDecorator
-
 @Struct
 def Direntry():
 	offset, length = int32[2]
@@ -16,7 +14,7 @@ def Header():
 
 @Struct
 def Texture():
-	name = string(64, stripNulls=True)
+	name = string(64)
 	surface_flags = int32
 	content_flags = int32
 
@@ -84,7 +82,7 @@ def Meshvert():
 
 @Struct
 def Effect(): # Called 'Fog' in the original source
-	name = string(64, stripNulls=True)
+	name = string(64)
 	brush = int32
 	visibleside = int32
 

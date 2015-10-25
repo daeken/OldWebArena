@@ -1,5 +1,48 @@
 import struct, sys
 
+class NameSurrogate(object):
+	def __getattr__(self, name):
+		return name
+
+nameSurrogate = NameSurrogate()
+
+ABSOLUTE = 0
+STRUCT_RELATIVE = 1
+RELATIVE = 2
+class struct_seek(object):
+	def __init__(self, offset, whence=ABSOLUTE):
+		self.offset, self.whence = offset, whence
+
+	def __enter__(self):
+		frame = BaseStruct.__framestack__[-1]
+		names = [name for name in frame.f_code.co_varnames[frame.f_code.co_argcount:] if name in frame.f_locals]
+		s = BaseStruct.__structstack__[-1]
+		s.trigger_after(names[-1] if len(names) else None, self.seek)
+
+	def seek(self, s):
+		self.lastpos = s.tell()
+
+		if isinstance(self.offset, str) or isinstance(self.offset, unicode):
+			offset = getattr(s, self.offset)
+		else:
+			offset = self.offset
+
+		if self.whence == ABSOLUTE:
+			s.seek(offset)
+		elif self.whence == STRUCT_RELATIVE:
+			s.seek(s.__startpos__ + offset)
+		elif self.whence == RELATIVE:
+			s.seek(self.lastpos + offset)
+
+	def unseek(self, s):
+		s.seek(self.lastpos)
+
+	def __exit__(self, type, value, tb):
+		frame = BaseStruct.__framestack__[-1]
+		names = [name for name in frame.f_code.co_varnames[frame.f_code.co_argcount:] if name in frame.f_locals]
+		s = BaseStruct.__structstack__[-1]
+		s.trigger_after(names[-1] if len(names) else None, self.unseek)
+
 class StructType(tuple):
 	def __getitem__(self, value):
 		if isinstance(value, tuple):
@@ -29,7 +72,7 @@ vec2 = float[2]
 vec3 = float[3]
 vec4 = float[4]
 
-def string(len, offset=0, encoding=None, stripNulls=False, value=''):
+def string(len, offset=0, encoding=None, stripNulls=True, value=''):
 	return StructType(('string', (len, offset, encoding, stripNulls, value)))
 
 class ArrayType(object):
@@ -52,28 +95,38 @@ class ConstantArrayType(object):
 class StructException(Exception):
 	pass
 
-class Struct(object):
-	__slots__ = ('__attrs__', '__baked__', '__defs__', '__endian__', '__format_func__', '__frame__', '__next__', '__sizes__', '__values__')
+class BaseStruct(object):
+	__slots__ = ('__attrs__', '__baked__', '__defs__', '__endian__', '__format_func__', '__fp__', '__frame__', '__next__', '__pos__', '__sizes__', '__startpos__', '__triggers__', '__values__')
 	
 	LE = '<'
 	BE = '>'
 	__endian__ = '<'
 	__format_func__ = None
+	__framestack__ = []
+	__structstack__ = []
 	
 	def __init__(self, unpack=None, **kwargs):
+		BaseStruct.__structstack__.append(self)
 		self.__defs__ = []
 		self.__sizes__ = []
 		self.__attrs__ = []
 		self.__values__ = {}
 		self.__next__ = True
 		self.__baked__ = False
+
+		self.__triggers__ = {}
 		
-		if self.__format_func__ is None:
-			self.__format__()
-		else:
+		if self.__format_func__ is not None:
+			self.__frame__ = None
 			sys.settrace(self.__trace__)
-			self.__format_func__.im_func()
-			for name in self.__format_func__.func_code.co_varnames:
+			if self.__format_func__.func_code.co_argcount == 1:
+				self.__format_func__.im_func(nameSurrogate)
+			else:
+				self.__format_func__.im_func()
+			sys.settrace(None)
+			BaseStruct.__framestack__.pop()
+			varnames = self.__format_func__.func_code.co_varnames[self.__format_func__.func_code.co_argcount:]
+			for name in varnames:
 				value = self.__frame__.f_locals[name]
 				self.__setattr__(name, value)
 
@@ -88,11 +141,14 @@ class Struct(object):
 		if len(kwargs):
 			for name in kwargs:
 				self.__values__[name] = kwargs[name]
+
+		BaseStruct.__structstack__.pop()
 	
 	def __trace__(self, frame, event, arg):
-		self.__frame__ = frame
-		sys.settrace(None)
-	
+		if self.__frame__ is None:
+			self.__frame__ = frame
+			BaseStruct.__framestack__.append(frame)
+
 	def __setattr__(self, name, value):
 		if name in self.__slots__:
 			return object.__setattr__(self, name, value)
@@ -107,10 +163,10 @@ class Struct(object):
 			self.__values__[name] = None
 			
 			for sub in value:
-				if isinstance(sub, Struct):
+				if isinstance(sub, BaseStruct):
 					sub = sub.__class__
 				try:
-					if issubclass(sub, Struct):
+					if issubclass(sub, BaseStruct):
 						sub = ('struct', sub)
 				except TypeError:
 					pass
@@ -126,7 +182,7 @@ class Struct(object):
 					elif self.__values__[name] == None:
 						self.__values__[name] = [size[3] for val in value]
 				elif type_ == 'struct':
-					self.__defs__.append(Struct)
+					self.__defs__.append(BaseStruct)
 					self.__sizes__.append(size)
 					self.__attrs__.append(attrname)
 					self.__next__ = True
@@ -138,8 +194,13 @@ class Struct(object):
 				elif type_ == 'array':
 					stype, size = size
 					if isinstance(size, tuple):
-						obj, attr = size
+						if hasattr(size, '__fieldname__'):
+							obj, attr = self, size.__fieldname__
+						else:
+							obj, attr = size
 						self.__defs__.append(ArrayType(stype, obj, attr))
+					elif isinstance(size, str):
+						self.__defs__.append(ArrayType(stype, self, size))
 					else:
 						self.__defs__.append(ConstantArrayType(stype, size))
 					self.__sizes__.append(None)
@@ -165,15 +226,17 @@ class Struct(object):
 				self.__values__[name] = value
 			except KeyError:
 				raise AttributeError(name)
+
+	def trigger_after(self, name, cb):
+		if name not in self.__triggers__:
+			self.__triggers__[name] = []
+		self.__triggers__[name].append(cb)
 	
 	def __getattr__(self, name):
-		if self.__baked__ == False:
-			return self, name
-		else:
-			try:
-				return self.__values__[name]
-			except KeyError:
-				raise AttributeError(name)
+		try:
+			return self.__values__[name]
+		except KeyError:
+			raise AttributeError(name)
 	
 	def __len__(self):
 		ret = 0
@@ -186,7 +249,7 @@ class Struct(object):
 				size, offset, encoding, stripNulls, value = size
 				if isinstance(size, str):
 					size = self.__values__[size] + offset
-			elif sdef == Struct:
+			elif sdef == BaseStruct:
 				if attrs[0] == '*':
 					if arrayname != attrs:
 						arrayname = attrs
@@ -223,22 +286,28 @@ class Struct(object):
 		if not multiline or len(kv) < 2:
 			return '%s(%s)' % (self.__class__.__name__, ', '.join('%s=%r' % (k, v) for k, v in kv))
 		else:
-			return '%s(\n%s\n)' % (self.__class__.__name__, '\n'.join('%s%s=%s%s' % ('\t' * level, k, v.__str__(multiline=True, level=level+1) if isinstance(v, Struct) else `v`, ', ' if i != len(kv) - 1 else ' ') for i, (k, v) in enumerate(kv)))
+			return '%s(\n%s\n)' % (self.__class__.__name__, '\n'.join('%s%s=%s%s' % ('\t' * level, k, v.__str__(multiline=True, level=level+1) if isinstance(v, BaseStruct) else `v`, ', ' if i != len(kv) - 1 else ' ') for i, (k, v) in enumerate(kv)))
 
 	def unpack(self, data, pos=0):
+		self.__pos__ = pos
 		is_file = isinstance(data, file)
+		if is_file:
+			self.__fp__ = data
+		else:
+			self.__fp__ = None
+		self.__startpos__ = self.tell()
 		for name in self.__values__:
-			if not isinstance(self.__values__[name], Struct):
+			if not isinstance(self.__values__[name], BaseStruct):
 				self.__values__[name] = None
 			elif self.__values__[name].__class__ == list and len(self.__values__[name]) != 0:
-				if not isinstance(self.__values__[name][0], Struct):
+				if not isinstance(self.__values__[name][0], BaseStruct):
 					self.__values__[name] = None
 		
 		arraypos, arrayname = None, None
 		
 		for i in range(len(self.__defs__)):
 			sdef, size, attrs = self.__defs__[i], self.__sizes__[i], self.__attrs__[i]
-			
+
 			if sdef == string:
 				size, offset, encoding, stripNulls, value = size
 				if isinstance(size, str):
@@ -247,7 +316,7 @@ class Struct(object):
 				if is_file:
 					temp = data.read(size)
 				else:
-					temp = data[pos:pos+size]
+					temp = data[self.__pos__:self.__pos__+size]
 				if len(temp) != size:
 					raise StructException('Expected %i byte string, got %i' % (size, len(temp)))
 				
@@ -264,37 +333,37 @@ class Struct(object):
 					self.__values__[name].append(temp)
 				else:
 					self.__values__[attrs] = temp
-				pos += size
-			elif sdef == Struct:
+				self.__pos__ += size
+			elif sdef == BaseStruct:
 				if attrs[0] == '*':
 					if arrayname != attrs:
 						arrayname = attrs
 						arraypos = 0
 					name = attrs[1:]
-					self.__values__[attrs][arraypos].unpack(data, pos)
-					pos += len(self.__values__[attrs][arraypos])
+					self.__values__[attrs][arraypos].unpack(data, self.__pos__)
+					self.__pos__ += len(self.__values__[attrs][arraypos])
 					arraypos += 1
 				else:
-					self.__values__[attrs].unpack(data, pos)
-					pos += len(self.__values__[attrs])
+					self.__values__[attrs].unpack(data, self.__pos__)
+					self.__pos__ += len(self.__values__[attrs])
 			elif isinstance(sdef, ArrayType) or isinstance(sdef, ConstantArrayType):
 				stype = tuple(sdef.type)
 				count = sdef.count()
 				arr = self.__values__[attrs] = []
 				for i in xrange(count):
 					if stype[0] == 'struct':
-						arr.append(stype[1]().unpack(data, pos))
-						pos += len(arr[-1])
+						arr.append(stype[1]().unpack(data, self.__pos__))
+						self.__pos__ += len(arr[-1])
 					elif is_file:
 						arr.append(struct.unpack(self.__endian__+stype[0], data.read(stype[1]))[0])
 					else:
-						arr.append(struct.unpack(self.__endian__+stype[0], data[pos:pos+stype[1]])[0])
+						arr.append(struct.unpack(self.__endian__+stype[0], data[self.__pos__:self.__pos__+stype[1]])[0])
 			else:
 				if is_file:
 					values = struct.unpack(self.__endian__+sdef, data.read(size))
 				else:
-					values = struct.unpack(self.__endian__+sdef, data[pos:pos+size])
-				pos += size
+					values = struct.unpack(self.__endian__+sdef, data[self.__pos__:self.__pos__+size])
+				self.__pos__ += size
 				j = 0
 				for name in attrs:
 					if name[0] == '*':
@@ -305,10 +374,28 @@ class Struct(object):
 					else:
 						self.__values__[name] = values[j]
 					j += 1
+
+			last = attrs[-1] if isinstance(attrs, list) else attrs
+			if last in self.__triggers__:
+				for cb in self.__triggers__[last]:
+					cb(self)
 		
 		return self
+
+	def seek(self, pos):
+		if self.__fp__ is None:
+			self.__pos__ = pos
+		else:
+			self.__fp__.seek(pos)
+
+	def tell(self):
+		if self.__fp__ is None:
+			return self.__pos__
+		else:
+			return self.__fp__.tell()
 	
 	def pack(self):
+		print 'Such deprecated.  Many unmaintained.'
 		arraypos, arrayname = None, None
 		
 		ret = ''
@@ -334,7 +421,7 @@ class Struct(object):
 				
 				temp = temp[:size]
 				ret += temp + ('\0' * (size - len(temp)))
-			elif sdef == Struct:
+			elif sdef == BaseStruct:
 				if attrs[0] == '*':
 					if arrayname != attrs:
 						arraypos = 0
@@ -361,12 +448,9 @@ class Struct(object):
 	def __getitem__(self, value):
 		return ('array', (('struct', self.__class__), value))
 
-class StructDecorator(Struct):
-	def __format__(self):
-		pass
-
 	def __call__(self, func):
-		return type(func.__name__, (Struct, ), dict(__format_func__=func))
-StructDecorator = StructDecorator()
+		return type(func.__name__, (BaseStruct, ), dict(__format_func__=func))
 
-__all__ = 'string sbyte schar int8 byte char uint8 short int16 ushort uint16 sint int32 uint uint32 int64 uint64 float vec2 vec3 vec4 Struct StructDecorator StructException'.split(' ')
+Struct = BaseStruct()
+
+__all__ = 'string sbyte schar int8 byte char uint8 short int16 ushort uint16 sint int32 uint uint32 int64 uint64 float vec2 vec3 vec4 Struct StructException STRUCT_RELATIVE RELATIVE ABSOLUTE struct_seek'.split(' ')
