@@ -1,5 +1,6 @@
 from Struct import *
 import json, sys
+import numpy as np
 
 @Struct
 def Direntry():
@@ -99,6 +100,69 @@ def Face():
 	normal = vec3
 	size = int32[2]
 
+# ind, verts = tesselate(face.size, fv, fmv)
+# this function is directly adapted from http://media.tojicode.com/q3bsp/js/q3bsp_worker.js
+def tesselate(size, verts, meshverts):
+	def getPoint(c0, c1, c2, dist):
+		def sub(attr):
+			v0, v1, v2 = map(np.array, (getattr(c0, attr), getattr(c1, attr), getattr(c2, attr)))
+			b = 1 - dist
+
+			vc = v0 * (b * b) + v1 * (2 * b * dist) + v2 * (dist * dist)
+			if attr == 'normal':
+				vc /= np.linalg.norm(vc)
+			setattr(outvert, attr, vc.tolist())
+
+		outvert = Vertex()
+		sub('position')
+		sub('texcoords')
+		sub('color')
+		sub('normal')
+		return outvert
+
+	level = 5.
+	L1 = int(level) + 1
+
+	for py in xrange(0, size[1]-2, 2):
+		for px in xrange(0, size[0]-2, 2):
+			rowOff = py * size[0]
+
+			c0, c1, c2 = verts[rowOff + px:rowOff + px + 3]
+			rowOff += size[0]
+			c3, c4, c5 = verts[rowOff + px:rowOff + px + 3]
+			rowOff += size[0]
+			c6, c7, c8 = verts[rowOff + px:rowOff + px + 3]
+
+			indexOff = len(verts)
+
+			for i in xrange(L1):
+				a = i / level
+				verts.append(getPoint(c0, c3, c6, a))
+
+			for i in xrange(1, L1):
+				a = i / level
+
+				tc0 = getPoint(c0, c1, c2, a)
+				tc1 = getPoint(c3, c4, c5, a)
+				tc2 = getPoint(c6, c7, c8, a)
+
+				for j in xrange(L1):
+					b = j / level
+
+					verts.append(getPoint(tc0, tc1, tc2, b))
+
+	for row in xrange(int(level)):
+		for col in xrange(int(level)):
+			meshverts.append(indexOff + (row + 1) * L1 + col)
+			meshverts.append(indexOff + row * L1 + col)
+			meshverts.append(indexOff + row * L1 + col + 1)
+			
+			meshverts.append(indexOff + (row + 1) * L1 + col)
+			meshverts.append(indexOff + row * L1 + col + 1)
+			meshverts.append(indexOff + (row + 1) * L1 + col + 1)
+
+	return meshverts, verts
+
 def main(fn, ofn):
 	def decode(lump, cls):
 		size = len(cls())
@@ -130,9 +194,11 @@ def main(fn, ofn):
 
 	model = models[0]
 	for face in faces[model.face:model.face+model.n_faces]:
-		if face.type == 1:
-			outindices += [mv.offset + len(outvertices) for mv in meshverts[face.meshvert:face.meshvert+face.n_meshverts]]
-			for vert in vertices[face.vertex:face.vertex+face.n_vertices]:
+		fmv = [x.offset for x in meshverts[face.meshvert:face.meshvert+face.n_meshverts]]
+		fv = vertices[face.vertex:face.vertex+face.n_vertices]
+		if face.type == 1 or face.type == 3:
+			outindices += [mv + len(outvertices) for mv in fmv]
+			for vert in fv:
 				outvertices.append((
 					[
 						vert.position[0], 
@@ -141,8 +207,20 @@ def main(fn, ofn):
 					], 
 					vert.normal
 				))
-		elif face.type == 3:
-			print 'mesh'
+		elif face.type == 2:
+			fmv, fv = tesselate(face.size, fv, fmv)
+			outindices += [mv + len(outvertices) for mv in fmv]
+			for vert in fv:
+				outvertices.append((
+					[
+						vert.position[0], 
+						vert.position[2], 
+						vert.position[1]
+					], 
+					vert.normal
+				))
+		elif face.type == 4:
+			pass
 		else:
 			print 'other', face.type
 
