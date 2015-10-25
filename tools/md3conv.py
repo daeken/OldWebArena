@@ -48,7 +48,8 @@ def Surface(self):
 	with struct_seek(self.ofs_st, STRUCT_RELATIVE):
 		texcoords = TexCoord()[self.num_verts]
 	with struct_seek(self.ofs_xyznormal, STRUCT_RELATIVE):
-		vertices = Vertex()[self.num_verts]
+		vertices = Vertex()[lambda self: self.num_frames * self.num_verts]
+	struct_seek(self.ofs_end, STRUCT_RELATIVE)
 
 @Struct
 def Header(self):

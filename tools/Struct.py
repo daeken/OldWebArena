@@ -12,12 +12,13 @@ RELATIVE = 2
 class struct_seek(object):
 	def __init__(self, offset, whence=ABSOLUTE):
 		self.offset, self.whence = offset, whence
-
-	def __enter__(self):
 		frame = BaseStruct.__framestack__[-1]
 		names = [name for name in frame.f_code.co_varnames[frame.f_code.co_argcount:] if name in frame.f_locals]
 		s = BaseStruct.__structstack__[-1]
 		s.trigger_after(names[-1] if len(names) else None, self.seek)
+
+	def __enter__(self):
+		pass
 
 	def seek(self, s):
 		self.lastpos = s.tell()
@@ -84,7 +85,16 @@ class ArrayType(object):
 	def count(self):
 		return getattr(self.obj, self.attr)
 
-class ConstantArrayType(object):
+class ExprArrayType(ArrayType):
+	def __init__(self, type, obj, cb):
+		self.type = type
+		self.obj = obj
+		self.cb = cb
+
+	def count(self):
+		return self.cb(self.obj)
+
+class ConstantArrayType(ArrayType):
 	def __init__(self, type, size):
 		self.type = type
 		self.size = size
@@ -201,6 +211,8 @@ class BaseStruct(object):
 						self.__defs__.append(ArrayType(stype, obj, attr))
 					elif isinstance(size, str):
 						self.__defs__.append(ArrayType(stype, self, size))
+					elif callable(size):
+						self.__defs__.append(ExprArrayType(stype, self, size))
 					else:
 						self.__defs__.append(ConstantArrayType(stype, size))
 					self.__sizes__.append(None)
@@ -257,9 +269,6 @@ class BaseStruct(object):
 					size = len(self.__values__[attrs[1:]][arraypos])
 				size = len(self.__values__[attrs])
 			elif isinstance(sdef, ArrayType):
-				stype = tuple(sdef.type)
-				size = sum(stype[1] if stype[0] != 'struct' else len(x) for x in self.__values__[attrs])
-			elif isinstance(sdef, ConstantArrayType):
 				stype = tuple(sdef.type)
 				size = sum(stype[1] if stype[0] != 'struct' else len(x) for x in self.__values__[attrs])
 			
@@ -346,7 +355,7 @@ class BaseStruct(object):
 				else:
 					self.__values__[attrs].unpack(data, self.__pos__)
 					self.__pos__ += len(self.__values__[attrs])
-			elif isinstance(sdef, ArrayType) or isinstance(sdef, ConstantArrayType):
+			elif isinstance(sdef, ArrayType):
 				stype = tuple(sdef.type)
 				count = sdef.count()
 				arr = self.__values__[attrs] = []
