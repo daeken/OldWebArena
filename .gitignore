@@ -1,5 +1,6 @@
 openarena content/
 server/node_modules/
 server/public/_gen/
+server/public/assets/
 *.pyc
 baseq3/

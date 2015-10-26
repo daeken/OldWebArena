@@ -1,9 +1,9 @@
+Collider = require './collider.coffee'
+
 class Renderer
 	constructor: ->
 		@scene = new THREE.Scene
 		@camera = new THREE.PerspectiveCamera 60, window.innerWidth / window.innerHeight, .01, 10000
-		@camera.position.z = 0
-		@camera.position.y = 0
 		@scene.add @camera
 
 		@scene.add new THREE.AmbientLight 0xffffff
@@ -17,6 +17,7 @@ class Renderer
 
 		@controls = new THREE.PointerLockControls @camera
 		@controls.enabled = false
+		@controls.getObject().position.set(0, 100, 0)
 		@scene.add @controls.getObject()
 
 		@pointerLock = false
@@ -77,18 +78,21 @@ class Renderer
 			player.mesh.position.y = player.position[1]
 			player.mesh.position.z = player.position[2]
 
+		movement = new THREE.Vector3
 		if @keyboard.pressed('w')
-			@controls.getObject().translateZ(-1)
+			movement.z -= 10
 		if @keyboard.pressed('s')
-			@controls.getObject().translateZ(1)
+			movement.z += 10
 		if @keyboard.pressed('a')
-			@controls.getObject().translateX(-1)
+			movement.x -= 10
 		if @keyboard.pressed('d')
-			@controls.getObject().translateX(1)
+			movement.x += 10
 		if @leftmouse
-			@controls.getObject().translateY(1)
+			movement.y += 10
 		if @rightmouse
-			@controls.getObject().translateY(-1)
+			movement.y -= 10
+		if movement.x != 0 or movement.y != 0 or movement.z != 0
+			@move movement
 
 		@renderer.setClearColor new THREE.Color(0x000010)
 		@renderer.render @scene, @camera
@@ -96,11 +100,25 @@ class Renderer
 		if @onrendercomplete
 			@onrendercomplete()
 
-	loadMap: (geometry) ->
+	move: (movement) ->
+		obj = @controls.getObject()
+		startpos = obj.position.clone()
+		obj.translateX movement.x
+		obj.translateY movement.y
+		obj.translateZ movement.z
+		endpos = obj.position.clone()
+
+		point = @collider.checkCollision startpos, endpos, null
+		if point
+			console.log 'collided'
+			obj.position.copy(point)
+
+	loadMap: (map) ->
 		material = new THREE.MeshNormalMaterial
-		@map_mesh = new THREE.Mesh geometry, material
+		@map_mesh = new THREE.Mesh map.geometry, material
 		#@map_mesh.frustumCulled = false
-		@map_mesh.scale.set(.1, .1, .1)
 		@scene.add @map_mesh
+
+		@collider = new Collider map.brushtree
 
 module.exports = Renderer
