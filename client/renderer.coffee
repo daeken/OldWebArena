@@ -50,6 +50,8 @@ class Renderer
 
 		@players = []
 
+		@clips = []
+
 		@render()
 
 	addPlayer: (player) ->
@@ -108,7 +110,20 @@ class Renderer
 		obj.translateZ movement.z
 		endpos = obj.position.clone()
 
-		point = @collider.checkCollision startpos, endpos, null
+		@clips.forEach (x) =>
+			@scene.remove x
+
+		@clips = []
+		point = @collider.checkCollision startpos, endpos, 25
+		for plane in @collider.clipPlanes
+			pos = plane[0].clone().multiplyScalar(plane[1])
+			pg = new THREE.PlaneGeometry(1000, 1000)
+			pg.position = pos
+			pg.up = plane[0]
+			mat = new THREE.MeshBasicMaterial({color: 0xffffff})
+			mesh = new THREE.Mesh pg, mat
+			@scene.add mesh
+			@clips.push mesh
 		if point
 			console.log 'collided'
 			obj.position.copy(point)

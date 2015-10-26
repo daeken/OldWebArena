@@ -1,5 +1,4 @@
 arrvec = (x) -> new THREE.Vector3 x[0], x[1], x[2]
-arrvec_yz = (x) -> new THREE.Vector3 x[0], x[2], x[1]
 
 parse_map = (data) ->
 	console.time 'Parsing map'
@@ -26,11 +25,11 @@ parse_map = (data) ->
 
 	for i in [0...planes.length]
 		plane = planes[i]
-		planes[i] = [arrvec_yz(plane), plane[3]]
+		planes[i] = [arrvec(plane), plane[3]]
 
 	for brush in brushes
 		for i in [0...brush.length]
-			brush[i] = planes[i]
+			brush[i] = planes[brush[i]]
 
 	deref_tree = (node) ->
 		if node[0] == 0

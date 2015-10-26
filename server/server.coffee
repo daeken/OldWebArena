@@ -21,31 +21,27 @@ id = 0
 app.ws '/', (ws, req) ->
 	ws.id = id++
 	console.log 'connected', ws.id
-	ws.connected = false
 	announce = JSON.stringify {type: 'announce', playerId: ws.id}
 	wss.clients.forEach (client) ->
 		if client != ws
-			if client.connected
-				client.send announce, (err) ->
-					client.close()
+			client.send announce, (err) ->
+				
 			ws.send JSON.stringify({type: 'announce', playerId: client.id}), (err) ->
-				ws.close()
-	ws.on 'open', ->
-		console.log 'connected', ws.id
-		ws.connected = true
+				
 	ws.on 'message', (msg) ->
 		msg = JSON.parse msg
 		msg.playerId = ws.id
 		omsg = JSON.stringify msg
 		if msg.type == 'update'
 			wss.clients.forEach (client) ->
-				if client != ws and client.connected
+				if client != ws
 					client.send omsg, (err) ->
-						client.close()
+						
 	ws.on 'close', ->
 		msg = JSON.stringify {type: 'disconnect', playerId: ws.id}
 		wss.clients.forEach (client) ->
-			client.send msg
+			client.send msg, (err) ->
+
 wss = expressWs.getWss '/'
 
 server = app.listen 5000, ->
