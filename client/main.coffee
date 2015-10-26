@@ -29,8 +29,9 @@ $(document).ready ->
 	network.onupdate = (id, position) ->
 		players[id].update position
 	network.ondisconnect = (id) ->
-		renderer.removePlayer players[id]
-		delete players[id]
+		if players[id]
+			renderer.removePlayer players[id]
+			delete players[id]
 	
 	pos = [-1000, -1000, -1000]
 	interval 33, ->
@@ -39,5 +40,6 @@ $(document).ready ->
 			pos = newpos
 			network.update newpos
 	
-	assets.get_json 'gate1.json', (data) ->
-		renderer.setMap importer.parse_map data
+	assets.get_json 'tourney.json', (data) ->
+		map = importer.parse_map data
+		renderer.loadMap map.geometry

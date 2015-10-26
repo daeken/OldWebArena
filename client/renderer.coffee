@@ -96,8 +96,8 @@ class Renderer
 		if @onrendercomplete
 			@onrendercomplete()
 
-	setMap: (geometry) ->
-		material = new THREE.MeshNormalMaterial({side: THREE.DoubleSide})
+	loadMap: (geometry) ->
+		material = new THREE.MeshNormalMaterial
 		@map_mesh = new THREE.Mesh geometry, material
 		#@map_mesh.frustumCulled = false
 		@map_mesh.scale.set(.1, .1, .1)

@@ -224,8 +224,32 @@ def main(fn, ofn):
 		else:
 			print 'other', face.type
 
+	outplanes = []
+	for plane in planes:
+		outplanes.append(plane.normal + [plane.dist])
+	outbrushes = []
+	for brush in brushes[model.brush:model.brush+model.n_brushes]:
+		texture = textures[brush.texture]
+		sides = brushsides[brush.brushside:brush.brushside+brush.n_brushsides]
+		outbrushes.append([])
+		curbrush = outbrushes[-1]
+		for side in sides:
+			tex = textures[side.texture]
+			if (tex.content_flags & 0x10001) == 1:
+				curbrush.append(side.plane)
+
+	def btree(ind):
+		if ind >= 0:
+			node = nodes[ind]
+			return [0, node.plane, node.mins, node.maxs, btree(node.children[0]), btree(node.children[1])]
+		else:
+			leaf = leafs[-(ind + 1)]
+			return [1, leaf.mins, leaf.maxs, [x.brush for x in leafbrushes[leaf.leafbrush:leaf.leafbrush+leaf.n_leafbrushes]]]
+
+	tree = btree(0)
+
 	outfp = file(ofn, 'wb')
-	outdata = dict(indices=outindices, vertices=outvertices)
+	outdata = dict(indices=outindices, vertices=outvertices, planes=outplanes, brushes=outbrushes, tree=tree)
 	json.dump(outdata, outfp)
 
 if __name__=='__main__':

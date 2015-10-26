@@ -1,10 +1,14 @@
 arrvec = (x) -> new THREE.Vector3 x[0], x[1], x[2]
 
 parse_map = (data) ->
+	console.time 'Parsing map'
 	geometry = new THREE.Geometry
 
 	indices = data.indices
 	vertices = data.vertices
+	tree = data.tree
+	brushes = data.brushes
+	planes = data.planes
 
 	for [vert, normal] in vertices
 		geometry.vertices.push arrvec vert
@@ -19,7 +23,26 @@ parse_map = (data) ->
 			]
 		)
 
-	geometry
+	for brush in brushes
+		for i in [0...brush.length]
+			brush[i] = planes[i]
+
+	deref_tree = (node) ->
+		if node[0] == 0
+			node[1] = planes[node[1]]
+			deref_tree node[4]
+			deref_tree node[5]
+		else
+			nbrushes = node[3]
+			for i in [0...nbrushes.length]
+				nbrushes[i] = brushes[nbrushes[i]]
+	deref_tree tree
+
+	console.timeEnd 'Parsing map'
+
+	{
+		geometry: geometry
+	}
 
 module.exports = {
 	parse_map: parse_map
