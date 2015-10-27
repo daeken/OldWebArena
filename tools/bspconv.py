@@ -225,13 +225,13 @@ def main(fn, ofn):
 	outbrushes = []
 	for brush in brushes[model.brush:model.brush+model.n_brushes]:
 		texture = textures[brush.texture]
+		# XXX: Rewrite file so non-solid brushes are nuked.
+		collidable = (texture.content_flags & 1) == 1
 		sides = brushsides[brush.brushside:brush.brushside+brush.n_brushsides]
-		outbrushes.append([])
-		curbrush = outbrushes[-1]
+		outbrushes.append([collidable, []])
+		curbrush = outbrushes[-1][1]
 		for side in sides:
-			tex = textures[side.texture]
-			if (tex.content_flags & 1) == 1:
-				curbrush.append(side.plane)
+			curbrush.append(side.plane)
 
 	def btree(ind):
 		if ind >= 0:

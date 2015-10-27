@@ -27,7 +27,7 @@ parse_map = (data) ->
 		plane = planes[i]
 		planes[i] = [arrvec(plane), plane[3]]
 
-	for brush in brushes
+	for [collidable, brush] in brushes
 		for i in [0...brush.length]
 			brush[i] = planes[brush[i]]
 

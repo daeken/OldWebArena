@@ -1,5 +1,11 @@
 Collider = require './collider.coffee'
 
+THREE.Vector3.prototype.invert = ->
+	this.x = -this.x
+	this.y = -this.y
+	this.z = -this.z
+	this
+
 class Renderer
 	constructor: ->
 		@scene = new THREE.Scene
@@ -114,19 +120,32 @@ class Renderer
 			@scene.remove x
 
 		@clips = []
-		point = @collider.checkCollision startpos, endpos, 25
-		for plane in @collider.clipPlanes
-			pos = plane[0].clone().multiplyScalar(plane[1])
-			pg = new THREE.PlaneGeometry(1000, 1000)
-			pg.position = pos
-			pg.up = plane[0]
-			mat = new THREE.MeshBasicMaterial({color: 0xffffff})
-			mesh = new THREE.Mesh pg, mat
-			@scene.add mesh
-			@clips.push mesh
+		point = @collider.checkCollision startpos, endpos, 10
+		@map_mesh.material.wireframe = false
 		if point
+			@map_mesh.material.wireframe = true
+			for [plane, same] in @collider.clipPlanes
+				pos = plane[0].clone().multiplyScalar(plane[1])
+				console.log plane[0]
+				pg = new THREE.PlaneGeometry(100000, 100000)
+				if same
+					color = 0xff0000
+				else
+					color = 0x0000ff
+				mat = new THREE.MeshBasicMaterial({color: color, transparent: true, opacity: 0.3})
+				mesh = new THREE.Mesh pg, mat
+				mesh.position.copy pos
+				
+				up = new THREE.Vector3 0, 0, 1
+				a = up.cross plane[0]
+				q = new THREE.Quaternion a.x, a.y, a.z, (
+						Math.sqrt(up.lengthSq() * plane[0].lengthSq()) + up.dot(plane[0])
+					)
+				mesh.rotation.setFromQuaternion q
+				@scene.add mesh
+				@clips.push mesh
 			console.log 'collided'
-			obj.position.copy(point)
+			obj.position.copy point
 
 	loadMap: (map) ->
 		material = new THREE.MeshNormalMaterial

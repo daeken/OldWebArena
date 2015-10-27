@@ -1,4 +1,4 @@
-EPS = .03125
+EPS = .003125
 
 clamp = (x) -> Math.min Math.max(x, 0), 1
 
@@ -38,11 +38,11 @@ class Collider
 
 					middleFraction = startFraction + (endFraction - startFraction) * fraction1
 					middle = start.clone().add(end.clone().sub(start).multiplyScalar fraction1)
-					checkNode node[4], startFraction, middleFraction, start, middle
+					checkNode node[4 + side], startFraction, middleFraction, start, middle
 
 					middleFraction = startFraction + (endFraction - startFraction) * fraction2
 					middle = start.clone().add(end.clone().sub(start).multiplyScalar fraction2)
-					checkNode node[5], middleFraction, endFraction, start, middle
+					checkNode node[5 - side], middleFraction, endFraction, middle, end
 			else
 				mins = node[1]
 				maxs = node[2]
@@ -52,17 +52,19 @@ class Collider
 					(mins[0] <= b.x <= maxs[0] and mins[1] <= b.y <= maxs[1] and mins[2] <= b.z <= maxs[2])
 				)
 					for brush in node[3]
-						if brush.length > 0
-							checkBrush brush
+						[collidable, brush] = brush
+						if collidable and brush.length > 0
+							checkBrush brush, start, end
 
-		checkBrush = (brush) =>
+		checkBrush = (brush, start, end) =>
 			startsOut = false
 			endsOut = false
 			startFraction = -1
 			endFraction = 1
+			clipped = false
 			for plane in brush
-				sd = a.dot(plane[0]) - (plane[1] + radius)
-				ed = b.dot(plane[0]) - (plane[1] + radius)
+				sd = start.dot(plane[0]) - (plane[1] + radius)
+				ed = end.dot(plane[0]) - (plane[1] + radius)
 
 				startsOut = true if sd > 0
 				endsOut = true if ed > 0
@@ -72,7 +74,12 @@ class Collider
 				else if sd <= 0 and ed <= 0
 					continue
 
-				@clipPlanes.push plane
+				if not clipped
+					for bp in brush
+						d = end.dot(bp[0]) - bp[1]
+						same = d >= 0
+						@clipPlanes.push [bp, same]
+					clipped = true
 
 				if sd > ed
 					fraction = (sd - EPS) / (sd - ed)
