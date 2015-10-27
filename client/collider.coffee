@@ -6,7 +6,6 @@ class Collider
 	constructor: (@tree) ->
 
 	checkCollision: (a, b, radius) ->
-		@clipPlanes = []
 		outputStartsOut = true
 		outputAllSolid = false
 		outputFraction = 1
@@ -61,7 +60,6 @@ class Collider
 			endsOut = false
 			startFraction = -1
 			endFraction = 1
-			clipped = false
 			for plane in brush
 				sd = start.dot(plane[0]) - (plane[1] + radius)
 				ed = end.dot(plane[0]) - (plane[1] + radius)
@@ -73,13 +71,6 @@ class Collider
 					return
 				else if sd <= 0 and ed <= 0
 					continue
-
-				if not clipped
-					for bp in brush
-						d = end.dot(bp[0]) - bp[1]
-						same = d >= 0
-						@clipPlanes.push [bp, same]
-					clipped = true
 
 				if sd > ed
 					fraction = (sd - EPS) / (sd - ed)

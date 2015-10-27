@@ -56,8 +56,6 @@ class Renderer
 
 		@players = []
 
-		@clips = []
-
 		@render()
 
 	addPlayer: (player) ->
@@ -116,35 +114,8 @@ class Renderer
 		obj.translateZ movement.z
 		endpos = obj.position.clone()
 
-		@clips.forEach (x) =>
-			@scene.remove x
-
-		@clips = []
 		point = @collider.checkCollision startpos, endpos, 10
-		@map_mesh.material.wireframe = false
 		if point
-			@map_mesh.material.wireframe = true
-			for [plane, same] in @collider.clipPlanes
-				pos = plane[0].clone().multiplyScalar(plane[1])
-				console.log plane[0]
-				pg = new THREE.PlaneGeometry(100000, 100000)
-				if same
-					color = 0xff0000
-				else
-					color = 0x0000ff
-				mat = new THREE.MeshBasicMaterial({color: color, transparent: true, opacity: 0.3})
-				mesh = new THREE.Mesh pg, mat
-				mesh.position.copy pos
-				
-				up = new THREE.Vector3 0, 0, 1
-				a = up.cross plane[0]
-				q = new THREE.Quaternion a.x, a.y, a.z, (
-						Math.sqrt(up.lengthSq() * plane[0].lengthSq()) + up.dot(plane[0])
-					)
-				mesh.rotation.setFromQuaternion q
-				@scene.add mesh
-				@clips.push mesh
-			console.log 'collided'
 			obj.position.copy point
 
 	loadMap: (map) ->
