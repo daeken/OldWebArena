@@ -1,14 +1,15 @@
-EPS = .003125
+EPS = .03125
 
 clamp = (x) -> Math.min Math.max(x, 0), 1
 
 class Collider
 	constructor: (@tree) ->
 
-	checkCollision: (a, b, radius) ->
-		outputStartsOut = true
+	trace: (a, b, radius) ->
+		outputStartOut = true
 		outputAllSolid = false
 		outputFraction = 1
+		outputPlane = undefined
 
 		checkNode = (node, startFraction, endFraction, start, end) =>
 			if node[0] == 0
@@ -56,16 +57,17 @@ class Collider
 							checkBrush brush, start, end
 
 		checkBrush = (brush, start, end) =>
-			startsOut = false
-			endsOut = false
+			startOut = false
+			endOut = false
 			startFraction = -1
 			endFraction = 1
+			collisionPlane = null
 			for plane in brush
 				sd = start.dot(plane[0]) - (plane[1] + radius)
 				ed = end.dot(plane[0]) - (plane[1] + radius)
 
-				startsOut = true if sd > 0
-				endsOut = true if ed > 0
+				startOut = true if sd > 0
+				endOut = true if ed > 0
 
 				if sd > 0 and ed > 0
 					return
@@ -74,25 +76,31 @@ class Collider
 
 				if sd > ed
 					fraction = (sd - EPS) / (sd - ed)
-					startFraction = fraction if fraction > startFraction
+					if fraction > startFraction
+						startFraction = fraction
+						collisionPlane = plane
 				else
 					fraction = (sd + EPS) / (sd - ed)
 					endFraction = fraction if fraction < endFraction
-			if not startsOut
-				outputStartsOut = false
-				if not endsOut
+			if not startOut
+				outputStartOut = false
+				if not endOut
 					outputAllSolid = true
 				return
 			if startFraction < endFraction
 				if startFraction > -1 and startFraction < outputFraction
-					startFraction = Math.max(startFraction, 0)
+					outputPlane = collisionPlane
+					startFraction = Math.max startFraction, 0
 					outputFraction = startFraction
 
 		checkNode @tree, 0, 1, a, b
 
-		if outputFraction != 1
-			return a.clone().add(b.clone().sub(a).multiplyScalar outputFraction)
-		else
-			return undefined
+		{
+			allSolid: outputAllSolid, 
+			startOut: outputStartOut, 
+			fraction: outputFraction, 
+			endPos: if outputFraction == 1 then b else a.clone().add(b.clone().sub(a).multiplyScalar outputFraction),
+			plane: outputPlane
+		}
 
 module.exports = Collider

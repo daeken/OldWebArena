@@ -34,11 +34,11 @@ def Vertex():
 
 @Struct
 def Surface(self):
-	magic = string(4)
+	magic = string(4).ignore
 	name = string(64)
 	flags = int32
-	num_frames, num_shaders, num_verts, num_triangles = uint32[4]
-	ofs_triangles, ofs_shaders, ofs_st, ofs_xyznormal, ofs_end = uint32[5]
+	num_frames, num_shaders, num_verts, num_triangles = uint32[4].ignore
+	ofs_triangles, ofs_shaders, ofs_st, ofs_xyznormal, ofs_end = uint32[5].ignore
 
 	with struct_seek(self.ofs_shaders, STRUCT_RELATIVE):
 		shaders = Shader()[self.num_shaders]
@@ -52,17 +52,17 @@ def Surface(self):
 
 @Struct
 def Header(self):
-	magic = string(4)
-	version = int32
+	magic = string(4).ignore
+	version = int32.ignore
 	name = string(64)
 	flags = int32
-	num_frames, num_tags, num_surfaces, num_skins = uint32[4]
-	ofs_frames, ofs_tags, ofs_surfaces, ofs_eof = uint32[4]
+	num_frames, num_tags, num_surfaces, num_skins = uint32[4].ignore
+	ofs_frames, ofs_tags, ofs_surfaces, ofs_eof = uint32[4].ignore
 
 	with struct_seek(self.ofs_frames, STRUCT_RELATIVE):
 		frames = Frame()[self.num_frames]
 	with struct_seek(self.ofs_tags, STRUCT_RELATIVE):
-		tags = Tag()[self.num_tags]
+		tags = Tag()[lambda self: self.num_frames * self.num_tags]
 	with struct_seek(self.ofs_surfaces, STRUCT_RELATIVE):
 		surfaces = Surface()[self.num_surfaces]
 	struct_seek(self.ofs_eof, STRUCT_RELATIVE)
@@ -70,7 +70,8 @@ def Header(self):
 def main(fn, ofn):
 	fp = file(fn, 'rb')
 	header = Header(fp)
-	print header
+	
+	print header.tags
 
 if __name__=='__main__':
 	main(*sys.argv[1:])

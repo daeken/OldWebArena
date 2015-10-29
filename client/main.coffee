@@ -10,12 +10,14 @@ interval = (time, cb) ->
 class MainApp
 	constructor: ->
 		stats = new Stats()
-		stats.setMode 1
+		stats.setMode 0
 		stats.domElement.style.position = 'absolute'
 		stats.domElement.style.left = stats.domElement.style.top = '0px'
 		document.body.appendChild stats.domElement
 
-		renderer = new Renderer
+		@player = new Player [0, 100, 0]
+
+		renderer = new Renderer @player
 		renderer.onrendercomplete = ->
 			stats.update()
 
@@ -24,7 +26,7 @@ class MainApp
 		network = new Network
 		network.onannounce = (id) ->
 			if !players[id]
-				players[id] = renderer.addPlayer new Player
+				players[id] = renderer.addPlayer new Player [-1000, -1000, -1000]
 		network.onupdate = (id, position) ->
 			players[id].update position
 		network.ondisconnect = (id) ->

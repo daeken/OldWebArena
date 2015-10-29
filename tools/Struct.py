@@ -1,4 +1,23 @@
-import struct, sys
+import copy, struct, sys
+
+class Ignorable:
+	_ignore = False
+	@property
+	def ignore(self):
+		out = copy.deepcopy(self)
+		for i, x in enumerate(out):
+			try:
+				out[i] = x.ignore
+			except:
+				pass
+		out._ignore = True
+		return out
+
+class IgnorableTuple(tuple, Ignorable):
+	pass
+
+class IgnorableList(list, Ignorable):
+	pass
 
 class NameSurrogate(object):
 	def __getattr__(self, name):
@@ -44,12 +63,13 @@ class struct_seek(object):
 		s = BaseStruct.__structstack__[-1]
 		s.trigger_after(names[-1] if len(names) else None, self.unseek)
 
-class StructType(tuple):
+class StructType(IgnorableTuple):
 	def __getitem__(self, value):
 		if isinstance(value, tuple):
-			return ('array', (self, value))
+			return IgnorableTuple(('array', (self, value)))
 		else:
-			return [self] * value
+			return IgnorableList([self] * value)
+
 	def __call__(self, value, endian='<'):
 		if isinstance(value, str):
 			return struct.unpack(endian + tuple.__getitem__(self, 0), value[:tuple.__getitem__(self, 1)])[0]
@@ -106,7 +126,7 @@ class StructException(Exception):
 	pass
 
 class BaseStruct(object):
-	__slots__ = ('__attrs__', '__baked__', '__defs__', '__endian__', '__format_func__', '__fp__', '__frame__', '__next__', '__pos__', '__sizes__', '__startpos__', '__triggers__', '__values__')
+	__slots__ = ('_ignore', '__attrs__', '__baked__', '__defs__', '__endian__', '__format_func__', '__fp__', '__frame__', '__next__', '__odefs__', '__pos__', '__sizes__', '__startpos__', '__triggers__', '__values__')
 	
 	LE = '<'
 	BE = '>'
@@ -118,11 +138,13 @@ class BaseStruct(object):
 	def __init__(self, unpack=None, **kwargs):
 		BaseStruct.__structstack__.append(self)
 		self.__defs__ = []
+		self.__odefs__ = {}
 		self.__sizes__ = []
 		self.__attrs__ = []
 		self.__values__ = {}
 		self.__next__ = True
 		self.__baked__ = False
+		self._ignore = False
 
 		self.__triggers__ = {}
 		
@@ -138,6 +160,7 @@ class BaseStruct(object):
 			varnames = self.__format_func__.func_code.co_varnames[self.__format_func__.func_code.co_argcount:]
 			for name in varnames:
 				value = self.__frame__.f_locals[name]
+				self.__odefs__[name] = value
 				self.__setattr__(name, value)
 
 		self.__baked__ = True
@@ -455,10 +478,23 @@ class BaseStruct(object):
 		return ret
 	
 	def __getitem__(self, value):
-		return ('array', (('struct', self.__class__), value))
+		return IgnorableTuple(('array', (('struct', self.__class__), value)))
 
 	def __call__(self, func):
 		return type(func.__name__, (BaseStruct, ), dict(__format_func__=func))
+
+	def toDict(self, recursive=True):
+		def conv(obj):
+			if isinstance(obj, list):
+				return map(conv, obj)
+			elif isinstance(obj, BaseStruct):
+				return obj.toDict()
+			else:
+				return obj
+		if recursive:
+			return { k:conv(v) for k, v in self.__values__.items() if not self.__odefs__[k]._ignore}
+		else:
+			return { k:v for k, v in self.__values__.items() if not self.__odefs__[k]._ignore}
 
 Struct = BaseStruct()
 

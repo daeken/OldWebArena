@@ -1,3 +1,4 @@
+Time = require './time.coffee'
 Collider = require './collider.coffee'
 
 THREE.Vector3.prototype.invert = ->
@@ -7,7 +8,7 @@ THREE.Vector3.prototype.invert = ->
 	this
 
 class Renderer
-	constructor: ->
+	constructor: (@localPlayer) ->
 		@scene = new THREE.Scene
 		@camera = new THREE.PerspectiveCamera 60, window.innerWidth / window.innerHeight, .01, 10000
 		@scene.add @camera
@@ -56,6 +57,8 @@ class Renderer
 
 		@players = []
 
+		@lastMove = 0
+
 		@render()
 
 	addPlayer: (player) ->
@@ -75,30 +78,29 @@ class Renderer
 
 	render: =>
 		requestAnimationFrame @render
-
+		return if not @map_mesh
+		
 		if @onupdate
 			@onupdate()
 
-		@players.forEach (player) ->
-			player.mesh.position.x = player.position[0]
-			player.mesh.position.y = player.position[1]
-			player.mesh.position.z = player.position[2]
+		@players.forEach (player) =>
+			if player != @localPlayer
+				player.mesh.position.copy player.position
 
 		movement = new THREE.Vector3
 		if @keyboard.pressed('w')
-			movement.z -= 10
+			movement.z -= 1
 		if @keyboard.pressed('s')
-			movement.z += 10
+			movement.z += 1
 		if @keyboard.pressed('a')
-			movement.x -= 10
+			movement.x -= 1
 		if @keyboard.pressed('d')
-			movement.x += 10
+			movement.x += 1
 		if @leftmouse
-			movement.y += 10
+			movement.y += 1
 		if @rightmouse
-			movement.y -= 10
-		if movement.x != 0 or movement.y != 0 or movement.z != 0
-			@move movement
+			movement.y -= 1
+		@move movement
 
 		@renderer.setClearColor new THREE.Color(0x000010)
 		@renderer.render @scene, @camera
@@ -108,22 +110,25 @@ class Renderer
 
 	move: (movement) ->
 		obj = @controls.getObject()
-		startpos = obj.position.clone()
-		obj.translateX movement.x
-		obj.translateY movement.y
-		obj.translateZ movement.z
-		endpos = obj.position.clone()
+		movement.applyQuaternion obj.quaternion
+		dir = movement.normalize()
 
-		point = @collider.checkCollision startpos, endpos, 10
-		if point
-			obj.position.copy point
+		elapsed = Time.getElapsed()
+		while elapsed - @lastMove >= 16
+			@lastMove += 16
+
+			@localPlayer.move dir, 16
+			
+			obj.position.copy @localPlayer.position
+			obj.position.y += 57
 
 	loadMap: (map) ->
 		material = new THREE.MeshNormalMaterial
 		@map_mesh = new THREE.Mesh map.geometry, material
-		#@map_mesh.frustumCulled = false
+		@map_mesh.frustumCulled = false
 		@scene.add @map_mesh
 
 		@collider = new Collider map.brushtree
+		@localPlayer.collider = @collider
 
 module.exports = Renderer

@@ -193,27 +193,27 @@ def main(fn, ofn):
 	faces = decode(13, Face)
 
 	outindices = []
-	outvertices = []
+	outpositions = []
+	outnormals = []
 
 	model = models[0]
+	numverts = 0
 	for face in faces[model.face:model.face+model.n_faces]:
 		fmv = [x.offset for x in meshverts[face.meshvert:face.meshvert+face.n_meshverts]]
 		fv = vertices[face.vertex:face.vertex+face.n_vertices]
 		if face.type == 1 or face.type == 3:
-			outindices += [mv + len(outvertices) for mv in fmv]
+			outindices += [mv + numverts for mv in fmv]
 			for vert in fv:
-				outvertices.append((
-					swizzle(vert.position), 
-					swizzle(vert.normal)
-				))
+				outpositions += swizzle(vert.position)
+				outnormals += swizzle(vert.normal)
+			numverts += len(fv)
 		elif face.type == 2:
 			fmv, fv = tesselate(face.size, fv, fmv)
-			outindices += [mv + len(outvertices) for mv in fmv]
+			outindices += [mv + numverts for mv in fmv]
 			for vert in fv:
-				outvertices.append((
-					swizzle(vert.position), 
-					swizzle(vert.normal)
-				))
+				outpositions += swizzle(vert.position)
+				outnormals += swizzle(vert.normal)
+			numverts += len(fv)
 		elif face.type == 4:
 			pass
 		else:
@@ -244,7 +244,7 @@ def main(fn, ofn):
 	tree = btree(0)
 
 	outfp = file(ofn, 'wb')
-	outdata = dict(indices=outindices, vertices=outvertices, planes=outplanes, brushes=outbrushes, tree=tree)
+	outdata = dict(indices=outindices, vertex_positions=outpositions, vertex_normals=outnormals, planes=outplanes, brushes=outbrushes, tree=tree)
 	json.dump(outdata, outfp)
 
 if __name__=='__main__':

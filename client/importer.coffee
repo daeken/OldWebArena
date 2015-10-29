@@ -2,26 +2,19 @@ arrvec = (x) -> new THREE.Vector3 x[0], x[1], x[2]
 
 parse_map = (data) ->
 	console.time 'Parsing map'
-	geometry = new THREE.Geometry
 
-	indices = data.indices
-	vertices = data.vertices
 	tree = data.tree
 	brushes = data.brushes
 	planes = data.planes
 
-	for [vert, normal] in vertices
-		geometry.vertices.push arrvec vert
+	indices = Uint32Array.from data.indices
+	positions = Float32Array.from data.vertex_positions
+	normals = Float32Array.from data.vertex_normals
 
-	for i in [0...indices.length] by 3
-		geometry.faces.push new THREE.Face3(
-			indices[i], indices[i+1], indices[i+2], 
-			[
-				arrvec(vertices[indices[i+0]][1]), 
-				arrvec(vertices[indices[i+1]][1]), 
-				arrvec(vertices[indices[i+2]][1])
-			]
-		)
+	geometry = new THREE.BufferGeometry
+	geometry.setIndex new THREE.BufferAttribute(indices, 1)
+	geometry.addAttribute 'position', new THREE.BufferAttribute(positions, 3)
+	geometry.addAttribute 'normal', new THREE.BufferAttribute(normals, 3)
 
 	for i in [0...planes.length]
 		plane = planes[i]
