@@ -16,6 +16,7 @@
     "express-ws": "^0.2.6",
     "nodemon": "^1.7.3",
     "simple-peer": "^5.11.5",
-    "three.js": "^0.73.0"
+    "three.js": "^0.73.0",
+    "three-math": "^0.69.0"
   }
 }
