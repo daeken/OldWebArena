@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/daeken/WebArena.png?label=ready&title=Ready)](https://waffle.io/daeken/WebArena)
 WebArena
 ========
 
