@@ -11,4 +11,4 @@ Make sure you have node.js installed, and download the [default level file](http
 
 ### Starting the client
 
-In a browser, navigate to `http://localhost:5000`
+In a browser, navigate to [localhost:5000](http://localhost:5000)
