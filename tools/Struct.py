@@ -1,5 +1,10 @@
 import copy, struct, sys
 
+class AttrDict(dict):
+	def __init__(self, *args, **kwargs):
+		super(AttrDict, self).__init__(*args, **kwargs)
+		self.__dict__ = self
+
 class Ignorable:
 	_ignore = False
 	@property
@@ -93,8 +98,8 @@ vec2 = float[2]
 vec3 = float[3]
 vec4 = float[4]
 
-def string(len, offset=0, encoding=None, stripNulls=True, value=''):
-	return StructType(('string', (len, offset, encoding, stripNulls, value)))
+def string(len, offset=0, encoding=None, nullTerm=True, stripNulls=True, value=''):
+	return StructType(('string', (len, offset, encoding, nullTerm, stripNulls, value)))
 
 class ArrayType(object):
 	def __init__(self, type, obj, attr):
@@ -134,16 +139,16 @@ class BaseStruct(object):
 	__format_func__ = None
 	__framestack__ = []
 	__structstack__ = []
-	
+
 	def __init__(self, unpack=None, **kwargs):
 		BaseStruct.__structstack__.append(self)
+		self.__baked__ = False
 		self.__defs__ = []
 		self.__odefs__ = {}
 		self.__sizes__ = []
 		self.__attrs__ = []
 		self.__values__ = {}
 		self.__next__ = True
-		self.__baked__ = False
 		self._ignore = False
 
 		self.__triggers__ = {}
@@ -185,7 +190,6 @@ class BaseStruct(object):
 	def __setattr__(self, name, value):
 		if name in self.__slots__:
 			return object.__setattr__(self, name, value)
-		
 		if self.__baked__ == False:
 			if not isinstance(value, list):
 				value = [value]
@@ -281,7 +285,7 @@ class BaseStruct(object):
 			sdef, size, attrs = self.__defs__[i], self.__sizes__[i], self.__attrs__[i]
 			
 			if sdef == string:
-				size, offset, encoding, stripNulls, value = size
+				size, offset, encoding, nullTerm, stripNulls, value = size
 				if isinstance(size, str):
 					size = self.__values__[size] + offset
 			elif sdef == BaseStruct:
@@ -341,7 +345,7 @@ class BaseStruct(object):
 			sdef, size, attrs = self.__defs__[i], self.__sizes__[i], self.__attrs__[i]
 
 			if sdef == string:
-				size, offset, encoding, stripNulls, value = size
+				size, offset, encoding, nullTerm, stripNulls, value = size
 				if isinstance(size, str):
 					size = self.__values__[size] + offset
 				
@@ -355,9 +359,11 @@ class BaseStruct(object):
 				if encoding != None:
 					temp = temp.decode(encoding)
 				
-				if stripNulls:
+				if nullTerm:
+					temp = temp.split('\0', 1)[0]
+				elif stripNulls:
 					temp = temp.rstrip('\0')
-				
+
 				if attrs[0] == '*':
 					name = attrs[1:]
 					if self.__values__[name] == None:
@@ -435,7 +441,7 @@ class BaseStruct(object):
 			sdef, size, attrs = self.__defs__[i], self.__sizes__[i], self.__attrs__[i]
 			
 			if sdef == string:
-				size, offset, encoding, stripNulls, value = size
+				size, offset, encoding, nullTerm, stripNulls, value = size
 				if isinstance(size, str):
 					size = self.__values__[size]+offset
 				
@@ -483,18 +489,19 @@ class BaseStruct(object):
 	def __call__(self, func):
 		return type(func.__name__, (BaseStruct, ), dict(__format_func__=func))
 
-	def toDict(self, recursive=True):
+	def toDict(self, recursive=True, attrs=True):
 		def conv(obj):
 			if isinstance(obj, list):
 				return map(conv, obj)
 			elif isinstance(obj, BaseStruct):
-				return obj.toDict()
+				return obj.toDict(attrs=attrs)
 			else:
 				return obj
+		df = AttrDict if attrs else dict
 		if recursive:
-			return { k:conv(v) for k, v in self.__values__.items() if not self.__odefs__[k]._ignore}
+			return df({ k:conv(v) for k, v in self.__values__.items() if not self.__odefs__[k]._ignore})
 		else:
-			return { k:v for k, v in self.__values__.items() if not self.__odefs__[k]._ignore}
+			return df({ k:v for k, v in self.__values__.items() if not self.__odefs__[k]._ignore})
 
 Struct = BaseStruct()
 
