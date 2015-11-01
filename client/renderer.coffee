@@ -23,8 +23,7 @@ class Renderer
 		document.body.appendChild @de
 
 		@controls = new THREE.PointerLockControls @camera
-		@controls.enabled = false
-		@controls.getObject().position.set(0, 100, 0)
+		@controls.getObject().position.set(0, 0, 100)
 		@scene.add @controls.getObject()
 
 		@pointerLock = false
@@ -89,17 +88,17 @@ class Renderer
 
 		movement = new THREE.Vector3
 		if @keyboard.pressed('w')
-			movement.z -= 1
+			movement.y += 1
 		if @keyboard.pressed('s')
-			movement.z += 1
+			movement.y -= 1
 		if @keyboard.pressed('a')
 			movement.x -= 1
 		if @keyboard.pressed('d')
 			movement.x += 1
 		if @leftmouse
-			movement.y += 1
+			movement.z += 1
 		if @rightmouse
-			movement.y -= 1
+			movement.z -= 1
 		@move movement
 
 		@renderer.setClearColor new THREE.Color(0x000010)
@@ -120,10 +119,10 @@ class Renderer
 			@localPlayer.move dir, 16
 			
 			obj.position.copy @localPlayer.position
-			obj.position.y += 57
+			obj.position.z += 57
 
 	loadMap: (map) ->
-		material = new THREE.MeshNormalMaterial
+		material = new THREE.MeshNormalMaterial {side: THREE.DoubleSide}
 		@map_mesh = new THREE.Mesh map.geometry, material
 		@map_mesh.frustumCulled = false
 		@scene.add @map_mesh

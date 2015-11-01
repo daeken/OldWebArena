@@ -99,7 +99,7 @@ def convert(inp):
 			for j in xrange(surface.num_verts):
 				vert = surface.vertices[off]
 				off += 1
-				vertices += vert.coord
+				vertices += [x / 64. for x in vert.coord]
 				"""lat = vert.normal[0] * 2 * math.pi / 255.
 				long = vert.normal[1] * 2 * math.pi / 255.
 				normals += [

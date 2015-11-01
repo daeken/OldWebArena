@@ -163,9 +163,6 @@ def tesselate(size, verts, meshverts):
 
 	return meshverts, verts
 
-def swizzle(x):
-	return [x[0], x[2], x[1]]
-
 def main(fn, ofn):
 	def decode(lump, cls):
 		size = len(cls())
@@ -204,15 +201,15 @@ def main(fn, ofn):
 		if face.type == 1 or face.type == 3:
 			outindices += [mv + numverts for mv in fmv]
 			for vert in fv:
-				outpositions += swizzle(vert.position)
-				outnormals += swizzle(vert.normal)
+				outpositions += vert.position
+				outnormals += vert.normal
 			numverts += len(fv)
 		elif face.type == 2:
 			fmv, fv = tesselate(face.size, fv, fmv)
 			outindices += [mv + numverts for mv in fmv]
 			for vert in fv:
-				outpositions += swizzle(vert.position)
-				outnormals += swizzle(vert.normal)
+				outpositions += vert.position
+				outnormals += vert.normal
 			numverts += len(fv)
 		elif face.type == 4:
 			pass
@@ -221,7 +218,7 @@ def main(fn, ofn):
 
 	outplanes = []
 	for plane in planes:
-		outplanes.append(swizzle(plane.normal) + [plane.dist])
+		outplanes.append(plane.normal + [plane.dist])
 	outbrushes = []
 	for brush in brushes[model.brush:model.brush+model.n_brushes]:
 		texture = textures[brush.texture]
@@ -236,10 +233,10 @@ def main(fn, ofn):
 	def btree(ind):
 		if ind >= 0:
 			node = nodes[ind]
-			return [0, node.plane, swizzle(node.mins), swizzle(node.maxs), btree(node.children[0]), btree(node.children[1])]
+			return [0, node.plane, node.mins, node.maxs, btree(node.children[0]), btree(node.children[1])]
 		else:
 			leaf = leafs[-(ind + 1)]
-			return [1, swizzle(leaf.mins), swizzle(leaf.maxs), [x.brush for x in leafbrushes[leaf.leafbrush:leaf.leafbrush+leaf.n_leafbrushes]]]
+			return [1, leaf.mins, leaf.maxs, [x.brush for x in leafbrushes[leaf.leafbrush:leaf.leafbrush+leaf.n_leafbrushes]]]
 
 	tree = btree(0)
 

@@ -31,7 +31,6 @@ def main(dir, ofn=None):
 		head=processFile(dir + '/head.md3'), 
 		skins=skins
 	)
-	print skins
 	if ofn is None:
 		pprint(output)
 	else:

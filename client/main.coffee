@@ -15,7 +15,7 @@ class MainApp
 		stats.domElement.style.left = stats.domElement.style.top = '0px'
 		document.body.appendChild stats.domElement
 
-		@player = new Player [0, 100, 0]
+		@player = new Player [0, 0, 100]
 
 		renderer = new Renderer @player
 		renderer.onrendercomplete = ->
@@ -44,6 +44,13 @@ class MainApp
 		assets.get_json 'tourney.json', (data) =>
 			map = importer.parse_map data
 			renderer.loadMap map
+
+		assets.get_json 'sarge.json', (data) =>
+			model = importer.parse_playermodel data
+			model.translateY 120
+			model.translateX -50
+			model.translateZ 50
+			renderer.scene.add model
 
 $(document).ready ->
 	new MainApp

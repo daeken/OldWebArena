@@ -48,14 +48,14 @@ class Player
 			@velocity.set 0, 0, 0
 
 	groundCheck: ->
-		checkPoint = @position.clone().setY(@position.y - q3movement_playerRadius - .25)
+		checkPoint = @position.clone().setZ(@position.z - q3movement_playerRadius - .25)
 		
 		@groundTrace = @collider.trace @position, checkPoint, q3movement_playerRadius
 		
 		@onGround = not (
 			@groundTrace.fraction == 1 or # falling
-			(@velocity.y > 0 and @velocity.dot(@groundTrace.plane[0]) > 10) or # jumping
-			@groundTrace.plane[0].y < .7 # steep slope
+			(@velocity.z > 0 and @velocity.dot(@groundTrace.plane[0]) > 10) or # jumping
+			@groundTrace.plane[0].z < .7 # steep slope
 		)
 
 	clipVelocity: (vel, normal) ->
@@ -85,7 +85,7 @@ class Player
 
 		@accelerate dir, speed, q3movement_accelerate
 		@velocity = @clipVelocity @velocity, @groundTrace.plane[0]
-		return if @velocity.x == 0 and @velocity.z == 0
+		return if @velocity.x == 0 and @velocity.y == 0
 
 		@stepSlideMove false
 
@@ -101,8 +101,8 @@ class Player
 
 		if gravity
 			endVelocity.copy @velocity
-			endVelocity.y -= q3movement_gravity * q3movement_frameTime
-			@velocity.y = (@velocity.y + endVelocity.y) * .5
+			endVelocity.z -= q3movement_gravity * q3movement_frameTime
+			@velocity.z = (@velocity.z + endVelocity.z) * .5
 
 			@velocity = @clipVelocity @velocity, @groundTrace.plane[0] if @groundTrace.plane
 
@@ -117,7 +117,7 @@ class Player
 
 			trace = @collider.trace @position, end, q3movement_playerRadius
 			if trace.allSolid
-				@velocity.y = 0
+				@velocity.z = 0
 				return true
 
 			@position.copy trace.endPos if trace.fraction > 0
@@ -175,27 +175,27 @@ class Player
 		sv = @velocity.clone()
 
 		down = sp.clone()
-		down.y -= q3movement_stepsize
+		down.z -= q3movement_stepsize
 		trace = @collider.trace sp, down, q3movement_playerRadius
 
-		up = new THREE.Vector3 0, 1, 0
-		return if @velocity.y > 0 and (trace.fraction == 1 or trace.plane[0].dot(up) < .7)
+		up = new THREE.Vector3 0, 0, 1
+		return if @velocity.z > 0 and (trace.fraction == 1 or trace.plane[0].dot(up) < .7)
 
 		up = sp.clone()
-		up.y += q3movement_stepsize
+		up.z += q3movement_stepsize
 
 		trace = @collider.trace sp, up, q3movement_playerRadius
 		if trace.allSolid
 			console.log 'stuck'
 			return
 
-		stepSize = trace.endPos.y - sp.y
+		stepSize = trace.endPos.z - sp.z
 		@position.copy trace.endPos
 
 		@slideMove gravity
 
 		down = @position.clone()
-		down.y -= stepSize
+		down.z -= stepSize
 		trace = @collider.trace @position, down, q3movement_playerRadius
 		@position.copy trace.endPos if not trace.allSolid
 
