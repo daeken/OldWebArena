@@ -122,7 +122,7 @@ class Renderer
 			obj.position.z += 57
 
 	loadMap: (map) ->
-		material = new THREE.MeshNormalMaterial {side: THREE.DoubleSide}
+		material = new THREE.MeshNormalMaterial
 		@map_mesh = new THREE.Mesh map.geometry, material
 		@map_mesh.frustumCulled = false
 		@scene.add @map_mesh

@@ -18,8 +18,11 @@ class MainApp
 		@player = new Player [0, 0, 100]
 
 		renderer = new Renderer @player
+		model = null
 		renderer.onrendercomplete = ->
 			stats.update()
+			if model
+				model.update()
 
 		players = {}
 
@@ -49,7 +52,7 @@ class MainApp
 			model = importer.parse_playermodel data
 			model.translateY 120
 			model.translateX -50
-			model.translateZ 50
+			model.translateZ 75
 			renderer.scene.add model
 
 $(document).ready ->

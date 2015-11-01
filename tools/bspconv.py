@@ -163,6 +163,12 @@ def tesselate(size, verts, meshverts):
 
 	return meshverts, verts
 
+def rewind(data):
+	out = []
+	for i in xrange(0, len(data), 3):
+		out += [data[i+0], data[i+2], data[i+1]]
+	return out
+
 def main(fn, ofn):
 	def decode(lump, cls):
 		size = len(cls())
@@ -241,7 +247,7 @@ def main(fn, ofn):
 	tree = btree(0)
 
 	outfp = file(ofn, 'wb')
-	outdata = dict(indices=outindices, vertex_positions=outpositions, vertex_normals=outnormals, planes=outplanes, brushes=outbrushes, tree=tree)
+	outdata = dict(indices=rewind(outindices), vertex_positions=outpositions, vertex_normals=outnormals, planes=outplanes, brushes=outbrushes, tree=tree)
 	json.dump(outdata, outfp)
 
 if __name__=='__main__':

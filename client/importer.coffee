@@ -66,25 +66,29 @@ class WAModel extends THREE.Object3D
 	constructor: (data) ->
 		super()
 
-		@static = data.meshes[0].frames.length == 1
-		if 100 <= data.meshes[0].frames.length
-			@frame = 91
-		else
-			@frame = 0
+		@frameCount = data.meshes[0].frames.length
+		@static = @frameCount == 1
+		@frame = 0
+		@meshes = []
 
 		mat = new THREE.MeshNormalMaterial { color: 0xffffff }
-		
 		for mesh in data.meshes
 			indices = Uint32Array.from mesh.indices
-			positions = Float32Array.from mesh.frames[@frame][0]
-			normals = new Float32Array mesh.frames[@frame][0].length
-			offset = 0
-			for i in [0...mesh.frames[@frame][1].length] by 2
-				lat = mesh.frames[@frame][1][i] * 2 * Math.PI / 255
-				long = mesh.frames[@frame][1][i+1] * 2 * Math.PI / 255
-				normals[offset++] = Math.cos(long) * Math.sin(lat)
-				normals[offset++] = Math.sin(long) * Math.sin(lat)
-				normals[offset++] = Math.cos(lat)
+			framePositions = []
+			frameNormals = []
+		
+			for frame in mesh.frames
+				positions = Float32Array.from frame[0]
+				normals = new Float32Array frame[0].length
+				offset = 0
+				for i in [0...frame[1].length] by 2
+					lat = frame[1][i] * 2 * Math.PI / 255
+					long = frame[1][i+1] * 2 * Math.PI / 255
+					normals[offset++] = Math.cos(long) * Math.sin(lat)
+					normals[offset++] = Math.sin(long) * Math.sin(lat)
+					normals[offset++] = Math.cos(lat)
+				framePositions.push positions
+				frameNormals.push normals
 
 			geometry = new THREE.BufferGeometry
 			geometry.setIndex new THREE.BufferAttribute(indices, 1)
@@ -92,11 +96,14 @@ class WAModel extends THREE.Object3D
 			geometry.addAttribute 'normal', new THREE.BufferAttribute(normals, 3)
 
 			mesh = new THREE.Mesh geometry, mat
+			mesh.framePositions = framePositions
+			mesh.frameNormals = frameNormals
 			@add mesh
+			@meshes.push mesh
 
 		@tags = data.tags
 		for name, value of @tags
-			@tags[name] = value.map (x) -> [arrvec(x[0]), arrmat3(x[1])]
+			@tags[name] = value.map (x) -> [arrvec(x[0]), arrmat2quat(x[1])]
 		@tagpoints = []
 
 	attach: (tag, model) ->
@@ -105,26 +112,34 @@ class WAModel extends THREE.Object3D
 		@add attachment
 		@tagpoints.push [tag, attachment, model]
 
-		@updatePositions()
-
-	updatePositions: ->
+	update: ->
+		@frame = (10) % @frameCount
+		for mesh in @meshes
+			pos = mesh.geometry.getAttribute 'position'
+			normal = mesh.geometry.getAttribute 'normal'
+			pos.array = mesh.framePositions[@frame]
+			normal.array = mesh.frameNormals[@frame]
+			pos.needsUpdate = true
+			normal.needsUpdate = true
 		for [tag, attachment, model] in @tagpoints
+			model.update()
 			[pos, tx] = model.tags[tag][if model.static then 0 else @frame]
-			model.position.copy pos
-			#model.quaternion.copy tx
+			model.position.copy pos.clone().invert()
+			model.quaternion.copy tx.clone().inverse()
 			[pos, tx] = @tags[tag][@frame]
 			attachment.position.copy pos
-			#attachment.quaternion.copy tx
+			attachment.quaternion.copy tx.clone().inverse()
 
 parse_playermodel = (data) ->
-	upper_model = new WAModel data.upper
 	lower_model = new WAModel data.lower
+	upper_model = new WAModel data.upper
 	head_model = new WAModel data.head
 
 	upper_model.attach 'tag_head', head_model
-	upper_model.attach 'tag_torso', lower_model
+	lower_model.attach 'tag_torso', upper_model
+	lower_model.update()
 
-	upper_model
+	lower_model
 
 module.exports = {
 	parse_map: parse_map, 

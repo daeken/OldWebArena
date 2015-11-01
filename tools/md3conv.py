@@ -67,6 +67,12 @@ def Header(self):
 		surfaces = Surface()[self.num_surfaces]
 	struct_seek(self.ofs_eof, STRUCT_RELATIVE)
 
+def rewind(data):
+	out = []
+	for i in xrange(0, len(data), 3):
+		out += [data[i+0], data[i+2], data[i+1]]
+	return out
+
 def convert(inp):
 	data = Header(inp)
 
@@ -111,7 +117,7 @@ def convert(inp):
 			this['frames'].append((vertices, normals))
 
 		for triangle in surface.triangles:
-			this['indices'] += triangle.indices
+			this['indices'] += rewind(triangle.indices)
 
 	return dict(
 		tags=tags, 
