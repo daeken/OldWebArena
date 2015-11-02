@@ -1,3 +1,5 @@
+Time = require './time.coffee'
+
 arrvec = (x) -> new THREE.Vector3 x[0], x[1], x[2]
 arrmat3 = (x) ->
 	mat = new THREE.Matrix4
@@ -106,14 +108,30 @@ class WAModel extends THREE.Object3D
 			@tags[name] = value.map (x) -> [arrvec(x[0]), arrmat2quat(x[1])]
 		@tagpoints = []
 
+		@animation = undefined
+
 	attach: (tag, model) ->
 		attachment = new THREE.Object3D
 		attachment.add model
 		@add attachment
 		@tagpoints.push [tag, attachment, model]
 
-	update: ->
-		@frame = (10) % @frameCount
+	animate: (start, length, loopFrames, fps) ->
+		@animation = [Time.elapsed, start, length, loopFrames, fps]
+		@frame = start
+
+	update: (time) ->
+		if @animation
+			[atime, start, tlen, llen, fps] = @animation
+			end = start + tlen
+			@frame = start + (Math.round((time - atime) * fps / 1000))
+			if @frame >= end
+				if llen != 0
+					offset = start + (tlen - llen)
+					@frame = ((@frame - offset) % llen) + offset
+				else
+					@frame = end - 1
+					@animation = undefined
 		for mesh in @meshes
 			pos = mesh.geometry.getAttribute 'position'
 			normal = mesh.geometry.getAttribute 'normal'
@@ -122,8 +140,8 @@ class WAModel extends THREE.Object3D
 			pos.needsUpdate = true
 			normal.needsUpdate = true
 		for [tag, attachment, model] in @tagpoints
-			model.update()
-			[pos, tx] = model.tags[tag][if model.static then 0 else @frame]
+			model.update time
+			[pos, tx] = model.tags[tag][model.frame]
 			model.position.copy pos.clone().invert()
 			model.quaternion.copy tx.clone().inverse()
 			[pos, tx] = @tags[tag][@frame]
@@ -131,6 +149,7 @@ class WAModel extends THREE.Object3D
 			attachment.quaternion.copy tx.clone().inverse()
 
 parse_playermodel = (data) ->
+	animations = data.animations
 	lower_model = new WAModel data.lower
 	upper_model = new WAModel data.upper
 	head_model = new WAModel data.head
@@ -138,6 +157,22 @@ parse_playermodel = (data) ->
 	upper_model.attach 'tag_head', head_model
 	lower_model.attach 'tag_torso', upper_model
 	lower_model.update()
+
+	lower_model.ganimate = (name) ->
+		[type, start, tlen, llen, fps] = animations[name]
+
+		if (type & 1) == 1
+			upper_model.frame = start
+			upper_model.animate start, tlen, llen, fps
+		if (type & 2) == 2
+			lower_model.frame = start
+			lower_model.animate start, tlen, llen, fps
+	
+	#Time.delay 2500, -> animate 'back'
+	#Time.delay 5000, -> animate 'death2'
+	lower_model.ganimate 'stand'
+	lower_model.ganimate 'idle'
+	lower_model.position.set 1000, 1000, 1000
 
 	lower_model
 

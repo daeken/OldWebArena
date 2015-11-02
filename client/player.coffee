@@ -1,3 +1,5 @@
+Time = require './time.coffee'
+
 # Code adapted/based on toji's webgl-quake3, in turn adapted from q3 itself.
 
 q3movement_stopspeed = 100.0
@@ -21,15 +23,30 @@ q3movement_playerRadius = 20.0
 q3movement_scale = 50
 
 class Player
-	constructor: (pos) ->
+	constructor: (pos, model) ->
 		@position = new THREE.Vector3 pos[0], pos[1], pos[2]
 		@velocity = new THREE.Vector3 0, 0, 0
 		@onGround = false
 		@groundTrace = undefined
+		@walked = 0
+		if model and not model.used
+			model.used = true
+			@mesh = model
+		else
+			geometry = new THREE.BoxGeometry 10, 10, 50
+			material = new THREE.MeshBasicMaterial { color: 0xffffff }
+			@mesh = new THREE.Mesh geometry, material
+			@mesh.animate = () ->
 
 	# Remote player update
 	update: (pos) ->
-		@position.set pos[0], pos[1], pos[2]
+		@mesh.animate 'walk'
+		id = ++@walked
+		Time.delay 100, ->
+			if @walked == id
+				@mesh.animate 'stand'
+				@mesh.animate 'idle'
+		@position.set pos[0], pos[1], pos[2]-50
 
 	applyFriction: ->
 		return if not @onGround

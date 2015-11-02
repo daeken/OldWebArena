@@ -3,6 +3,7 @@ Player = require './player.coffee'
 assets = require './asset-mgr.coffee'
 importer = require './importer.coffee'
 Network = require './network.coffee'
+Time = require './time.coffee'
 
 interval = (time, cb) ->
 	setInterval cb, time
@@ -22,14 +23,14 @@ class MainApp
 		renderer.onrendercomplete = ->
 			stats.update()
 			if model
-				model.update()
+				model.update Time.elapsed
 
 		players = {}
 
 		network = new Network
 		network.onannounce = (id) ->
 			if !players[id]
-				players[id] = renderer.addPlayer new Player [-1000, -1000, -1000]
+				players[id] = renderer.addPlayer new Player [-1000, -1000, -1000], model
 		network.onupdate = (id, position) ->
 			players[id].update position
 		network.ondisconnect = (id) ->
@@ -51,7 +52,7 @@ class MainApp
 		assets.get_json 'sarge.json', (data) =>
 			model = importer.parse_playermodel data
 			model.translateY 120
-			model.translateX -50
+			model.translateX 0
 			model.translateZ 75
 			renderer.scene.add model
 

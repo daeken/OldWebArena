@@ -62,9 +62,6 @@ class Renderer
 
 	addPlayer: (player) ->
 		@players.push player
-		geometry = new THREE.BoxGeometry 10, 50, 10
-		material = new THREE.MeshBasicMaterial { color: 0xffffff }
-		player.mesh = new THREE.Mesh geometry, material
 		@scene.add player.mesh
 		player
 
@@ -112,7 +109,7 @@ class Renderer
 		movement.applyQuaternion obj.quaternion
 		dir = movement.normalize()
 
-		elapsed = Time.getElapsed()
+		elapsed = Time.elapsed
 		while elapsed - @lastMove >= 16
 			@lastMove += 16
 
