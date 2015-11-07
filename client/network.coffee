@@ -12,7 +12,7 @@ class Network
 			if msg.type == 'announce' and @onannounce
 				@onannounce msg.playerId
 			else if msg.type == 'update' and @onupdate
-				@onupdate msg.playerId, msg.position
+				@onupdate msg.playerId, msg.position, msg.rotation
 			else if msg.type == 'disconnect' and @ondisconnect
 				@ondisconnect msg.playerId
 		@ws.onerror = (evt) =>
@@ -21,11 +21,12 @@ class Network
 	send: (data) ->
 		@ws.send JSON.stringify data
 
-	update: (position) ->
+	update: (position, rotation) ->
 		if @connected
 			@send {
 				type: 'update', 
-				position: position
+				position: position, 
+				rotation: rotation
 			}
 
 module.exports = Network

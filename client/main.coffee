@@ -19,42 +19,40 @@ class MainApp
 		@player = new Player [0, 0, 100]
 
 		renderer = new Renderer @player
-		model = null
 		renderer.onrendercomplete = ->
 			stats.update()
-			if model
-				model.update Time.elapsed
+			for id, player of players
+				player.mesh.update Time.elapsed
 
 		players = {}
 
 		network = new Network
 		network.onannounce = (id) ->
 			if !players[id]
-				players[id] = renderer.addPlayer new Player [-1000, -1000, -1000], model
-		network.onupdate = (id, position) ->
-			players[id].update position
+				assets.get_json 'sarge.json', (data) =>
+					model = importer.parse_playermodel data
+					renderer.scene.add model
+					players[id] = renderer.addPlayer new Player [-1000, -1000, -1000], model
+		network.onupdate = (id, position, rotation) ->
+			players[id].update position, rotation
 		network.ondisconnect = (id) ->
 			if players[id]
 				renderer.removePlayer players[id]
 				delete players[id]
 		
 		pos = [-1000, -1000, -1000]
+		rotation = [0, 0]
 		interval 33, ->
 			newpos = renderer.curPosition()
-			if newpos[0] != pos[0] or newpos[1] != pos[1] or newpos[2] != pos[2]
+			newrot = renderer.curRotation()
+			if newpos[0] != pos[0] or newpos[1] != pos[1] or newpos[2] != pos[2] or rotation[0] != newrot[0] or rotation[1] != newrot[1]
 				pos = newpos
-				network.update newpos
+				rotation = newrot
+				network.update newpos, newrot
 		
 		assets.get_json 'tourney.json', (data) =>
 			map = importer.parse_map data
 			renderer.loadMap map
-
-		assets.get_json 'sarge.json', (data) =>
-			model = importer.parse_playermodel data
-			model.translateY 120
-			model.translateX 0
-			model.translateZ 75
-			renderer.scene.add model
 
 $(document).ready ->
 	new MainApp

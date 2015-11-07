@@ -25,27 +25,24 @@ q3movement_scale = 50
 class Player
 	constructor: (pos, model) ->
 		@position = new THREE.Vector3 pos[0], pos[1], pos[2]
+		@rotation = [0, 0]
 		@velocity = new THREE.Vector3 0, 0, 0
 		@onGround = false
 		@groundTrace = undefined
-		@walked = 0
-		if model and not model.used
-			model.used = true
-			@mesh = model
-		else
-			geometry = new THREE.BoxGeometry 10, 10, 50
-			material = new THREE.MeshBasicMaterial { color: 0xffffff }
-			@mesh = new THREE.Mesh geometry, material
-			@mesh.animate = () ->
+		@walking = false
+		@mesh = model
 
 	# Remote player update
-	update: (pos) ->
-		@mesh.animate 'walk'
-		id = ++@walked
-		Time.delay 100, ->
-			if @walked == id
-				@mesh.animate 'stand'
-				@mesh.animate 'idle'
+	update: (pos, rot) ->
+		if not @walking
+			@mesh.ganimate 'run'
+			Time.delay 200, =>
+				if @walking
+					@mesh.ganimate 'stand'
+					@mesh.ganimate 'idle'
+					@walking = false
+			@walking = true
+		@rotation = rot
 		@position.set pos[0], pos[1], pos[2]-50
 
 	applyFriction: ->

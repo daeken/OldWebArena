@@ -72,6 +72,9 @@ class Renderer
 		pos = @controls.getObject().position
 		[pos.x, pos.y, pos.z]
 
+	curRotation: ->
+		@controls.getRotation()
+
 	render: =>
 		requestAnimationFrame @render
 		return if not @map_mesh
@@ -82,6 +85,7 @@ class Renderer
 		@players.forEach (player) =>
 			if player != @localPlayer
 				player.mesh.position.copy player.position
+				player.mesh.rotation.z = player.rotation[0] + Math.PI / 2
 
 		movement = new THREE.Vector3
 		if @keyboard.pressed('w')
